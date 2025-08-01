@@ -3,6 +3,7 @@
 #include "engine/graphics/ChunkRenderer.h"
 #include "engine/graphics/CloudRenderer.h"
 #include "engine/graphics/SkyboxRenderer.h"
+#include "engine/graphics/SunRenderer.h"
 #include "engine/graphics/Camera.h"
 #include "engine/graphics/OpenGL.h"
 #include "engine/AssetManager.h"
@@ -40,6 +41,7 @@ Game::~Game() {
     m_crosshair.reset();
     m_world.reset();
     m_chunkRenderer.reset();
+    m_sunRenderer.reset();
     m_skyboxRenderer.reset();
     m_cloudRenderer.reset();
     m_camera.reset();
@@ -183,6 +185,12 @@ void Game::initialize() {
         throw std::runtime_error("Failed to initialize skybox renderer");
     }
 
+    // Create sun renderer
+    m_sunRenderer = std::make_unique<SunRenderer>();
+    if (!m_sunRenderer->initialize()) {
+        throw std::runtime_error("Failed to initialize sun renderer");
+    }
+
     // Record loading start time
     m_loadingStartTime = glfwGetTime();    // Setup mouse input
     m_window->enableMouseCapture();
@@ -267,6 +275,11 @@ void Game::render() {
         m_skyboxRenderer->render(view, projection, static_cast<float>(glfwGetTime()));
     }
     
+    // Render sun after skybox but before everything else (behind clouds)
+    if (m_sunRenderer) {
+        m_sunRenderer->render(view, projection, static_cast<float>(glfwGetTime()), m_camera->getPosition());
+    }
+    
     // No lighting setup needed - we want flat, bright rendering!
     
     // Draw the beautiful world
@@ -274,7 +287,7 @@ void Game::render() {
         m_world->render(m_chunkRenderer.get(), view, projection);
     }
     
-    // Render clouds
+    // Render clouds (should appear in front of sun)
     if (m_cloudRenderer && g_worldConfig.clouds.enabled) {
         m_cloudRenderer->render(view, projection, static_cast<float>(glfwGetTime()), m_camera->getPosition());
     }

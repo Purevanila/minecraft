@@ -9,6 +9,7 @@ class Window;
 class ChunkRenderer;
 class CloudRenderer;
 class SkyboxRenderer;
+class SunRenderer;
 class Camera;
 class World;
 class LoadingScreen;
@@ -46,6 +47,7 @@ private:
     std::unique_ptr<ChunkRenderer> m_chunkRenderer;
     std::unique_ptr<CloudRenderer> m_cloudRenderer;
     std::unique_ptr<SkyboxRenderer> m_skyboxRenderer;
+    std::unique_ptr<SunRenderer> m_sunRenderer;
     std::unique_ptr<Camera> m_camera;
     std::unique_ptr<World> m_world;
     std::unique_ptr<LoadingScreen> m_loadingScreen;
