@@ -111,8 +111,13 @@ void BlockOutline::updateTargetBlock(const Camera& camera, const World& world, f
     
     RaycastUtil::RaycastResult result = RaycastUtil::raycast(rayOrigin, rayDirection, world, maxDistance);
     
+    updateFromRaycast(result);
+}
+
+void BlockOutline::updateFromRaycast(const RaycastUtil::RaycastResult& result) {
     if (result.hit) {
         m_targetBlock = result.blockPos;
+        m_hitPoint = result.hitPoint;  // Store the actual hit point
         m_hasTarget = true;
     } else {
         m_hasTarget = false;
@@ -131,12 +136,22 @@ void BlockOutline::render(const glm::mat4& view, const glm::mat4& projection, co
     
     m_shader->use();
     
-    // Use the exact hit point instead of block center to eliminate offset
+    // Position outline at block center using the hit point to determine the exact center
     glm::vec3 renderPos;
     
-    // Get the actual hit point from raycast (you'll need to store this in updateTargetBlock)
-    // For now, use block center but with proper offset handling
+    // DIAGNOSTIC APPROACH: Position exactly at the target block coordinates (no offset)
+    // This should align with the corner of the block mesh if that's where it's positioned
     renderPos = glm::vec3(m_targetBlock);
+    
+    // Position outline at block center
+    #ifdef DEBUG_OUTLINE_POSITIONING
+    static int outlineDebugCounter = 0;
+    if (outlineDebugCounter++ % 60 == 0) {
+        std::cout << "[DEBUG OUTLINE] Target Block: (" << m_targetBlock.x << ", " << m_targetBlock.y << ", " << m_targetBlock.z << ")" << std::endl;
+        std::cout << "[DEBUG OUTLINE] Hit Point: (" << m_hitPoint.x << ", " << m_hitPoint.y << ", " << m_hitPoint.z << ")" << std::endl;
+        std::cout << "[DEBUG OUTLINE] Render Position: (" << renderPos.x << ", " << renderPos.y << ", " << renderPos.z << ")" << std::endl;
+    }
+    #endif
     
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, renderPos);

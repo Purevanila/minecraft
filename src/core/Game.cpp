@@ -9,6 +9,7 @@
 #include "world/Block.h"
 #include "world/BlockDefinition.h"
 #include "utils/RaycastUtil.h"
+#include "utils/RaycastDebug.h"
 #include <cmath>
 #include "world/World.h"
 #include "world/features/TreeFeature.h"
@@ -17,6 +18,7 @@
 #include "ui/Crosshair.h"
 #include "ui/BlockOutline.h"
 #include "ui/Hotbar.h"
+#include "ui/RayVisualization.h"
 
 #include "entities/ItemEntity.h"
 #include <algorithm>
@@ -145,6 +147,12 @@ void Game::initialize() {
         throw std::runtime_error("Failed to initialize hotbar");
     }
 
+    // Create ray visualization for debugging
+    m_rayVisualization = std::make_unique<RayVisualization>();
+    if (!m_rayVisualization->initialize()) {
+        throw std::runtime_error("Failed to initialize ray visualization");
+    }
+
 
     /*
     m_inventory = std::make_unique<Inventory>();
@@ -209,9 +217,34 @@ void Game::update(float deltaTime) {
         m_cloudRenderer->update(deltaTime);
     }
 
-    // Update block outline
-    if (m_blockOutline && m_camera && m_world) {
-        m_blockOutline->updateTargetBlock(*m_camera, *m_world, 5.0f);  // Explicitly pass max distance
+    // Perform shared raycast for block outline and ray visualization
+    if (m_camera && m_world) {
+        glm::vec3 rayStart = m_camera->getPosition();
+        glm::vec3 rayDirection = m_camera->getFront();
+        
+        // Use the same ray start for both visualization and calculation
+        // The raycast function now handles "starting inside block" cases internally
+        auto raycastResult = RaycastUtil::raycast(rayStart, rayDirection, *m_world, 5.0f);
+        
+        // DEBUG: Print ray data and result (but limit output)
+        static int debugCounter = 0;
+        if (raycastResult.hit && debugCounter++ % 60 == 0) { // Print every 60 frames (~1 second at 60fps)
+            std::cout << "[DEBUG] Ray Start: (" << rayStart.x << ", " << rayStart.y << ", " << rayStart.z << ")" << std::endl;
+            std::cout << "[DEBUG] Ray Direction: (" << rayDirection.x << ", " << rayDirection.y << ", " << rayDirection.z << ")" << std::endl;
+            std::cout << "[DEBUG] Hit Block: (" << raycastResult.blockPos.x << ", " << raycastResult.blockPos.y << ", " << raycastResult.blockPos.z << ")" << std::endl;
+            std::cout << "[DEBUG] Hit Point: (" << raycastResult.hitPoint.x << ", " << raycastResult.hitPoint.y << ", " << raycastResult.hitPoint.z << ")" << std::endl;
+            std::cout << "---" << std::endl;
+        }
+        
+        // Update block outline with shared raycast result
+        if (m_blockOutline) {
+            m_blockOutline->updateFromRaycast(raycastResult);
+        }
+        
+        // Update ray visualization with the same ray start for perfect alignment
+        if (m_rayVisualization) {
+            m_rayVisualization->updateRay(rayStart, rayDirection, 5.0f, raycastResult.hit, raycastResult.hitPoint);
+        }
     }
     
     // Update item entities
@@ -273,6 +306,11 @@ void Game::render() {
     // Render block outline
     if (m_blockOutline) {
         m_blockOutline->render(view, projection);
+    }
+    
+    // Render ray visualization for debugging
+    if (m_rayVisualization) {
+        m_rayVisualization->render(view, projection);
     }
     
     // Render item entities
@@ -340,6 +378,19 @@ void Game::processInput(float deltaTime) {
         }
     }
     */
+    
+    // Toggle ray visualization with R key
+    if (m_rayVisualization) {
+        static bool rKeyPressed = false;
+        if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS && !rKeyPressed) {
+            bool currentVisible = m_rayVisualization->isVisible();
+            m_rayVisualization->setVisible(!currentVisible);
+            std::cout << "Ray visualization " << (currentVisible ? "disabled" : "enabled") << std::endl;
+            rKeyPressed = true;
+        } else if (glfwGetKey(window, GLFW_KEY_R) == GLFW_RELEASE) {
+            rKeyPressed = false;
+        }
+    }
         
     // Close window on ESC
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -406,14 +457,29 @@ void Game::handleBlockBreaking() {
         return;
     }
 
-    // Use efficient shared raycast utility
+    // Use efficient shared raycast utility - same calculation as in update()
     glm::vec3 rayStart = m_camera->getPosition();
     glm::vec3 rayDirection = m_camera->getFront();
     
-    // Add a small offset to the ray start to improve accuracy
+    // DEBUG: Print camera data before raycast
+    GAME_DEBUG("Camera Position: (" << rayStart.x << ", " << rayStart.y << ", " << rayStart.z << ")");
+    GAME_DEBUG("Camera Front: (" << rayDirection.x << ", " << rayDirection.y << ", " << rayDirection.z << ")");
+    
+    // Add a small offset to the ray start to improve accuracy (same as in update())
     rayStart += rayDirection * 0.1f;
     
+    GAME_DEBUG("Ray Start (after offset): (" << rayStart.x << ", " << rayStart.y << ", " << rayStart.z << ")");
+    GAME_DEBUG("Calling raycast with max distance: 5.0");
+    
     auto result = RaycastUtil::raycast(rayStart, rayDirection, *m_world, 5.0f);
+
+    // DEBUG: Print raycast result
+    GAME_DEBUG("Raycast result - Hit: " << (result.hit ? "true" : "false"));
+    if (result.hit) {
+        GAME_DEBUG("Hit Block Position: (" << result.blockPos.x << ", " << result.blockPos.y << ", " << result.blockPos.z << ")");
+        GAME_DEBUG("Hit Point: (" << result.hitPoint.x << ", " << result.hitPoint.y << ", " << result.hitPoint.z << ")");
+        GAME_DEBUG("Block Type: " << static_cast<int>(result.blockType));
+    }
 
     if (result.hit) {
         BlockType blockType = m_world->getBlockType(result.blockPos);

@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <memory>
+#include "utils/RaycastUtil.h"
 
 class Shader;
 class Camera;
@@ -17,6 +18,7 @@ public:
     void cleanup();
     
     void updateTargetBlock(const Camera& camera, const World& world, float maxDistance = 5.0f);
+    void updateFromRaycast(const RaycastUtil::RaycastResult& result);
     
     void setVisible(bool visible) { m_visible = visible; }
     void setLineWidth(float width) { m_lineWidth = width; }
@@ -35,6 +37,7 @@ private:
     bool m_hasTarget = false;
     float m_lineWidth = 2.0f;
     glm::ivec3 m_targetBlock;
+    glm::vec3 m_hitPoint;  // Store the actual raycast hit point
     
     static constexpr int VERTEX_COUNT = 8;
     static constexpr int INDEX_COUNT = 24;

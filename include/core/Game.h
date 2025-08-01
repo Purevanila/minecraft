@@ -15,6 +15,7 @@ class LoadingScreen;
 class Crosshair;
 class BlockOutline;
 class Hotbar;
+class RayVisualization;
 
 class ItemEntity;
 struct GLFWwindow;
@@ -51,6 +52,7 @@ private:
     std::unique_ptr<Crosshair> m_crosshair;
     std::unique_ptr<BlockOutline> m_blockOutline;
     std::unique_ptr<Hotbar> m_hotbar;
+    std::unique_ptr<RayVisualization> m_rayVisualization;
 
     std::vector<std::unique_ptr<ItemEntity>> m_itemEntities;
     bool m_running;
