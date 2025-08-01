@@ -1,6 +1,6 @@
-# Minecraft Clone
+# SKIDDED! minecraft!
 
-A Minecraft-inspired voxel game written in C++ using OpenGL.
+Yo i think this could be skidded
 
 ## Features
 

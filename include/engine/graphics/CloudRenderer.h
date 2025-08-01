@@ -9,8 +9,9 @@ class Shader;
 class Mesh;
 
 /**
- * CloudRenderer - Renders simple animated clouds in the sky
- * Creates a Minecraft-like cloud layer that moves slowly across the sky
+ * CloudRenderer - Renders smooth, infinitely moving clouds like Minecraft
+ * Creates a large static cloud mesh that moves smoothly via shader animation
+ * No discrete mesh regeneration - clouds move continuously through time
  */
 class CloudRenderer {
 public:
@@ -56,7 +57,6 @@ private:
     float m_windVariation = 0.0f;     // For natural wind movement
     float m_lastUpdateTime = 0.0f;    // Track time for smooth updates
     
-    void generateCloudMesh();
     void generateCloudMeshAroundPosition(const glm::vec3& centerPos);
-    void createCloudQuad(float x, float z, float height, float size, std::vector<float>& vertices, std::vector<unsigned int>& indices, unsigned int& vertexIndex);
+    void createCloudCube(float x, float z, float baseHeight, float size, float height, std::vector<float>& vertices, std::vector<unsigned int>& indices, unsigned int& vertexIndex);
 };

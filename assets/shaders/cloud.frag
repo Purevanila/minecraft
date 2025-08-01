@@ -12,38 +12,35 @@ uniform vec3 viewPos;
 uniform float time;
 
 void main() {
-    // Simple cloud color - white with some transparency
+    // Pure white clouds like Minecraft
     vec3 cloudColor = vec3(1.0, 1.0, 1.0);
     
-    // Very basic lighting for clouds
+    // Minecraft-style lighting with slight face shading
     float ambientStrength = 0.9;
     vec3 ambient = ambientStrength * lightColor;
     
-    // Minimal directional lighting
+    // Add subtle directional lighting to show the 3D cube faces
     vec3 norm = normalize(Normal);
     vec3 lightDir = normalize(lightPos - FragPos);
-    float diff = max(dot(norm, lightDir), 0.0) * 0.1;
+    float diff = max(dot(norm, lightDir), 0.0) * 0.15; // Subtle shading to show 3D shape
     vec3 diffuse = diff * lightColor;
     
     vec3 result = (ambient + diffuse) * cloudColor;
     
-    // Make clouds semi-transparent like Minecraft
-    float alpha = 0.8;
+    // Create Minecraft-style cloud texture with holes
+    vec2 cloudCoord = TexCoord * 8.0; // 8x8 texture pattern per face
     
-    // Minecraft-style cloud texture pattern - very smooth and continuous
-    float animatedX = TexCoord.x + time * 0.0005; // Very slow for smooth movement
-    float animatedY = TexCoord.y + time * 0.0003; // Even slower
+    // Add slow movement
+    float moveSpeed = 0.002;
+    cloudCoord.x += time * moveSpeed;
     
-    // Simple cloud density pattern like Minecraft - smooth and continuous
-    float cloudDensity = sin(animatedX * 3.14159) * sin(animatedY * 3.14159) * 0.1 + 0.9;
+    // Solid Minecraft-style clouds - no holes, no cheese!
+    vec2 pixelGrid = floor(cloudCoord);
+    float pixelHash = sin(pixelGrid.x * 127.1 + pixelGrid.y * 311.7) * 43758.5453;
+    pixelHash = fract(pixelHash);
     
-    // Subtle variation for realism
-    float subtleVariation = sin(animatedX * 2.0) * 0.03 + 1.0;
-    
-    alpha *= cloudDensity * subtleVariation;
-    
-    // Smooth edge transitions like Minecraft
-    alpha = smoothstep(0.6, 1.0, alpha);
+    // Completely solid clouds with consistent alpha
+    float alpha = 0.6; // Medium alpha that looks good even when overlapping
     
     FragColor = vec4(result, alpha);
 }
