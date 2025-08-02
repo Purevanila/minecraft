@@ -19,6 +19,10 @@ struct BlockDefinition {
     bool requiresTool = false;
     std::string toolType = "hand";
     
+    // Drop behavior - what item this block drops when broken
+    BlockType dropType = BlockType::AIR;  // Default: drops nothing
+    bool dropsSelf = true;  // Most blocks drop themselves
+    
     // Rendering properties
     bool needsSeparateMesh = false;  // For liquids, transparent blocks, etc.
     
@@ -40,6 +44,9 @@ public:
     
     // Get block definition
     const BlockDefinition& getDefinition(BlockType type) const;
+    
+    // Get what a block drops when broken
+    BlockType getDropType(BlockType type) const;
     
     // Check if block exists
     bool hasDefinition(BlockType type) const;

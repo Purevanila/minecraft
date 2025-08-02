@@ -33,6 +33,14 @@ public:
     // Gravel generation near lakes
     bool shouldGenerateGravel(int worldX, int worldY, int worldZ, int surfaceHeight) const;
     
+    // Sand generation in desert areas and beaches
+    bool shouldGenerateSand(int worldX, int worldY, int worldZ, int surfaceHeight) const;
+    
+    // Continental generation for large landmasses
+    bool isOnContinent(int worldX, int worldZ) const;
+    bool isInOceanArea(int worldX, int worldZ) const;
+    float getDistanceToOcean(int worldX, int worldZ) const;
+    
     // Tree generation
     bool shouldGenerateTree(int worldX, int worldZ) const;
     
@@ -70,6 +78,8 @@ private:
     PerlinNoise m_lakeNoise;            // For lake generation
     PerlinNoise m_plainsNoise;          // For plains generation
     PerlinNoise m_treeNoise;            // For tree generation
+    PerlinNoise m_continentNoise;       // For continental landmasses
+    PerlinNoise m_islandNoise;          // For island details
     TerrainParams m_params;
     
     // Helper functions

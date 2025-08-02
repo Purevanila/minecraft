@@ -30,6 +30,8 @@ Chunk::Chunk(const glm::ivec2& position, ModularWorldGenerator* terrainGen, bool
     
     m_gravelMesh = std::make_unique<Mesh>();
     
+    m_sandMesh = std::make_unique<Mesh>();
+    
     // Initialize mesh building flag
     if (autoGenerate) {
         generate();
@@ -65,6 +67,12 @@ void Chunk::drawStoneMesh() const {
 void Chunk::drawGravelMesh() const {
     if (m_gravelMesh) {
         m_gravelMesh->render();
+    }
+}
+
+void Chunk::drawSandMesh() const {
+    if (m_sandMesh) {
+        m_sandMesh->render();
     }
 }
 
@@ -189,6 +197,8 @@ void Chunk::buildMesh() {
     std::vector<unsigned int> stoneIndices;
     std::vector<Vertex> gravelVertices;
     std::vector<unsigned int> gravelIndices;
+    std::vector<Vertex> sandVertices;
+    std::vector<unsigned int> sandIndices;
     
     // ⚡ PERFORMANCE: Reserve larger memory for fewer reallocations
     solidVertices.reserve(16384);    // Double the size to reduce reallocations
@@ -203,12 +213,15 @@ void Chunk::buildMesh() {
     stoneIndices.reserve(12288);     
     gravelVertices.reserve(2048);    
     gravelIndices.reserve(3072);
+    sandVertices.reserve(2048);      // Reserve space for sand blocks
+    sandIndices.reserve(3072);
     unsigned int solidVertexIndex = 0;
     unsigned int waterVertexIndex = 0;
     unsigned int oakVertexIndex = 0;
     unsigned int leavesVertexIndex = 0;
     unsigned int stoneVertexIndex = 0;
     unsigned int gravelVertexIndex = 0;
+    unsigned int sandVertexIndex = 0;
     
     // Static face direction and normal arrays for cube face generation
     static const glm::ivec3 faceDirections[6] = {
@@ -334,7 +347,11 @@ void Chunk::buildMesh() {
                                 (blockType == BlockType::STONE && neighborType == BlockType::GRAVEL) ||
                                 (blockType == BlockType::GRAVEL && neighborType == BlockType::STONE) ||
                                 (blockType == BlockType::DIRT && neighborType == BlockType::GRAVEL) ||
-                                (blockType == BlockType::GRAVEL && neighborType == BlockType::DIRT);
+                                (blockType == BlockType::GRAVEL && neighborType == BlockType::DIRT) ||
+                                (blockType == BlockType::SAND && neighborType == BlockType::DIRT) ||
+                                (blockType == BlockType::DIRT && neighborType == BlockType::SAND) ||
+                                (blockType == BlockType::SAND && neighborType == BlockType::STONE) ||
+                                (blockType == BlockType::STONE && neighborType == BlockType::SAND);
                             
                             if (similarMaterials) {
                                 shouldRenderInteriorFace = false; 
@@ -441,6 +458,9 @@ void Chunk::buildMesh() {
                     } else if (blockType == BlockType::GRAVEL) {
                         addFaceToMesh(gravelVertices, gravelIndices, blockWorldPos, faceIndex,
                                       faceNormals[faceIndex], gravelVertexIndex);
+                    } else if (blockType == BlockType::SAND) {
+                        addFaceToMesh(sandVertices, sandIndices, blockWorldPos, faceIndex,
+                                      faceNormals[faceIndex], sandVertexIndex);
                     } else {
                         
                         addFaceToMesh(solidVertices, solidIndices, blockWorldPos, faceIndex,
@@ -500,6 +520,14 @@ void Chunk::buildMesh() {
         m_gravelMesh->setIndices(gravelIndices);
     }
     m_gravelMesh->upload();
+    
+    
+    m_sandMesh->clear();
+    if (!sandVertices.empty()) {
+        m_sandMesh->setVertices(sandVertices);
+        m_sandMesh->setIndices(sandIndices);
+    }
+    m_sandMesh->upload();
     
     m_needsRebuild = false;
 }

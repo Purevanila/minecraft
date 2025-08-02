@@ -71,6 +71,7 @@ public:
     void drawLeavesMesh() const; // Draw mesh for leaves blocks only
     void drawStoneMesh() const;  // Draw mesh for stone blocks only
     void drawGravelMesh() const; // Draw mesh for gravel blocks only
+    void drawSandMesh() const;   // Draw mesh for sand blocks only
     
     // Async mesh building support
     void markReadyForUpload();   // Flag chunk as having mesh data ready for GPU
@@ -102,6 +103,7 @@ private:
     std::unique_ptr<Mesh> m_leavesMesh;     // Mesh containing leaves block geometry
     std::unique_ptr<Mesh> m_stoneMesh;      // Mesh containing stone block geometry
     std::unique_ptr<Mesh> m_gravelMesh;     // Mesh containing gravel block geometry
+    std::unique_ptr<Mesh> m_sandMesh;       // Mesh containing sand block geometry
     bool m_needsRebuild;
     std::atomic<bool> m_generated{false};  // Atomic for thread safety
     bool m_readyForUpload = false;  // True if mesh data is built and ready for GPU upload

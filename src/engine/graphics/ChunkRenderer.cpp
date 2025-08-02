@@ -59,6 +59,12 @@ bool ChunkRenderer::initialize() {
         return false;
     }
     
+    m_sandTexture = AssetManager::getInstance().loadTexture("assets/textures/sand.png");
+    if (!m_sandTexture) {
+        std::cout << "Failed to load sand texture!" << std::endl;
+        return false;
+    }
+    
     // Initialize texture coordinates
     initializeTextureCoords();
     
@@ -166,6 +172,15 @@ void ChunkRenderer::renderBlockType(const Chunk& chunk, BlockType blockType,
                 texture->bind(0);
                 m_shader->setInt("texture1", 0);
                 chunk.drawGravelMesh();
+            }
+            break;
+            
+        case BlockType::SAND:
+            texture = m_sandTexture;
+            if (texture) {
+                texture->bind(0);
+                m_shader->setInt("texture1", 0);
+                chunk.drawSandMesh();
             }
             break;
             

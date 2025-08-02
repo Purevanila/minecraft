@@ -23,6 +23,15 @@ const BlockDefinition& BlockDefinitionRegistry::getDefinition(BlockType type) co
     return s_defaultDefinition;
 }
 
+BlockType BlockDefinitionRegistry::getDropType(BlockType type) const {
+    const BlockDefinition& def = getDefinition(type);
+    if (def.dropsSelf) {
+        return type;  // Block drops itself
+    } else {
+        return def.dropType;  // Block drops specified type
+    }
+}
+
 bool BlockDefinitionRegistry::hasDefinition(BlockType type) const {
     return m_definitions.find(type) != m_definitions.end();
 }
@@ -46,12 +55,16 @@ void BlockDefinitionRegistry::initializeDefaultBlocks() {
     BlockDefinition grassDef("grass", "assets/textures/grass.png");
     grassDef.hardness = 0.6f;
     grassDef.toolType = "shovel";
+    grassDef.dropsSelf = false;  // Grass drops dirt, not grass
+    grassDef.dropType = BlockType::DIRT;
     registerBlock(BlockType::GRASS, grassDef);
     
     // Dirt block
     BlockDefinition dirtDef("dirt", "assets/textures/grass.png");  // Using grass texture for now
     dirtDef.hardness = 0.5f;
     dirtDef.toolType = "shovel";
+    dirtDef.dropsSelf = true;  // Dirt drops dirt
+    dirtDef.dropType = BlockType::DIRT;
     registerBlock(BlockType::DIRT, dirtDef);
     
     // Stone block
@@ -60,6 +73,8 @@ void BlockDefinitionRegistry::initializeDefaultBlocks() {
     stoneDef.toolType = "pickaxe";
     stoneDef.requiresTool = true;
     stoneDef.needsSeparateMesh = true;  // Separate mesh for different texture
+    stoneDef.dropsSelf = true;  // Stone drops stone
+    stoneDef.dropType = BlockType::STONE;
     registerBlock(BlockType::STONE, stoneDef);
     
     // Water block
@@ -76,6 +91,8 @@ void BlockDefinitionRegistry::initializeDefaultBlocks() {
     oakLogDef.hardness = 2.0f;
     oakLogDef.toolType = "axe";
     oakLogDef.needsSeparateMesh = true;  // Separate mesh for different texture
+    oakLogDef.dropsSelf = true;  // Oak log drops oak log
+    oakLogDef.dropType = BlockType::OAK_LOG;
     registerBlock(BlockType::OAK_LOG, oakLogDef);
     
     // Oak leaves block
@@ -84,7 +101,19 @@ void BlockDefinitionRegistry::initializeDefaultBlocks() {
     oakLeavesDef.toolType = "shears";
     oakLeavesDef.transparent = true;  // Leaves are partially transparent
     oakLeavesDef.needsSeparateMesh = true;  // Separate mesh for different texture
+    oakLeavesDef.dropsSelf = true;  // Leaves drop leaves (when using shears)
+    oakLeavesDef.dropType = BlockType::LEAVES;
     registerBlock(BlockType::LEAVES, oakLeavesDef);
+    
+    // Sand block
+    BlockDefinition sandDef("sand", "assets/textures/sand.png");
+    sandDef.hardness = 0.5f;
+    sandDef.toolType = "shovel";
+    sandDef.transparent = false;  // Sand is solid
+    sandDef.needsSeparateMesh = true;  // Separate mesh for different texture
+    sandDef.dropsSelf = true;  // Sand drops sand items
+    sandDef.dropType = BlockType::SAND;  // Explicitly specify sand drop
+    registerBlock(BlockType::SAND, sandDef);
     
     // Gravel block
     BlockDefinition gravelDef("gravel", "assets/textures/gravel.png");
@@ -92,6 +121,8 @@ void BlockDefinitionRegistry::initializeDefaultBlocks() {
     gravelDef.toolType = "shovel";
     gravelDef.transparent = false;  // Gravel is solid
     gravelDef.needsSeparateMesh = true;  // Separate mesh for different texture
+    gravelDef.dropsSelf = true;  // Gravel drops gravel
+    gravelDef.dropType = BlockType::GRAVEL;
     registerBlock(BlockType::GRAVEL, gravelDef);
     
     std::cout << "Initialized " << m_definitions.size() << " block definitions" << std::endl;

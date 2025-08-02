@@ -13,29 +13,53 @@ TerrainGenerator::TerrainGenerator(unsigned int seed)
     , m_caveNoise(seed + 2000)       // Different seed for caves
     , m_lakeNoise(seed + 3000)       // Different seed for lakes
     , m_plainsNoise(seed + 5000)     // Different seed for plains
-    , m_treeNoise(seed + 4000) {     // Different seed for trees
+    , m_treeNoise(seed + 4000)       // Different seed for trees
+    , m_continentNoise(seed + 6000)  // Different seed for continents
+    , m_islandNoise(seed + 7000) {   // Different seed for island details
 }
 
 int TerrainGenerator::getTerrainHeight(int worldX, int worldZ) const {
-    double heightValue = getHeightNoise(worldX, worldZ);
+    // Use continental noise to determine terrain type
+    double continentalNoise = m_continentNoise.octaveNoise(
+        worldX * 0.0008,  // Even lower frequency for smoother continents
+        worldZ * 0.0008,
+        3,                // Fewer octaves for smoother transitions
+        0.5               // Lower persistence for less detail
+    );
     
-    // Convert noise (-1 to 1) to actual height with Minecraft-like distribution
+    // Ocean areas (low continental noise) should be much lower
+    if (continentalNoise < -0.3) {
+        // Deep ocean floor
+        return m_params.waterLevel - 8;
+    } else if (continentalNoise < -0.1) {
+        // Shallow ocean/coastal areas
+        return m_params.waterLevel - 3;
+    }
+    
+    // Land areas - generate normal terrain
+    double heightValue = getHeightNoise(worldX, worldZ);
     int height = static_cast<int>(m_params.heightOffset + heightValue * m_params.heightScale);
     
     // Apply plains flattening if in a plains area
     if (shouldGeneratePlains(worldX, worldZ)) {
         double plainsInfluence = getPlainsInfluence(worldX, worldZ);
-        // Flatten terrain towards a target height (slightly above water level)
         int targetHeight = m_params.waterLevel + 3; // Flat plains just above water
         height = static_cast<int>(height * (1.0 - plainsInfluence) + targetHeight * plainsInfluence);
     }
     
-    // Clamp to reasonable Minecraft-like height range first
-    height = std::max(25, std::min(height, 55));
+    // Create gentle shores near ocean boundaries
+    if (continentalNoise < 0.4) {
+        float shoreEffect = std::max(0.0f, (float)continentalNoise + 0.3f) / 0.7f; // 0 to 1
+        int minShoreHeight = m_params.waterLevel + 2;
+        height = static_cast<int>(height * shoreEffect + minShoreHeight * (1.0f - shoreEffect));
+    }
     
-    // Only slightly lower terrain in lake areas to create shallow basins
-    if (shouldGenerateLake(worldX, worldZ)) {
-        height = std::max(height - 5, m_params.waterLevel - 4); // Shallow lakes, max 4 blocks deep
+    // Clamp to reasonable Minecraft-like height range
+    height = std::max(10, std::min(height, 65));
+    
+    // Small lakes can still exist on continents
+    if (shouldGenerateLake(worldX, worldZ) && continentalNoise > 0.1) {
+        height = std::max(height - 3, m_params.waterLevel - 2); // Shallow inland lakes
     }
     
     return height;
@@ -44,51 +68,111 @@ int TerrainGenerator::getTerrainHeight(int worldX, int worldZ) const {
 BlockType TerrainGenerator::getBlockType(int worldX, int worldY, int worldZ, int surfaceHeight) const {
     // Check if should place water 
     bool isInLake = shouldGenerateLake(worldX, worldZ);
+    bool isInOcean = isInOceanArea(worldX, worldZ);
     int waterLevel = m_params.waterLevel;
     
-    // Fill lake areas with water up to water level, with additional validation
-    if (isInLake && worldY > surfaceHeight && worldY <= waterLevel) {
-        // Additional safety check: make sure we're not creating floating water
-        // Ensure the water has solid ground beneath it (within reasonable depth)
-        int depthCheck = worldY - 1;
-        while (depthCheck > surfaceHeight && depthCheck > worldY - 8) { // Check up to 8 blocks down
-            if (depthCheck <= surfaceHeight) {
-                break; // Found solid ground, water is safe to place
-            }
-            depthCheck--;
-        }
-        
-        // Only place water if we're not too far above solid ground
-        if (worldY - surfaceHeight <= 6) { // Max 6 blocks of water depth
-            return BlockType::WATER;
-        }
+    // Fill ALL underwater areas with water (oceans, lakes, etc.)
+    if (worldY > surfaceHeight && worldY <= waterLevel) {
+        // If terrain is below water level, fill with water
+        return BlockType::WATER;
     }
     
     // Air above water level or above surface
-    if (worldY > surfaceHeight && (!isInLake || worldY > waterLevel)) {
-        // Check for tree stem placement ON TOP of grass surfaces (not in lakes)
-        // Place oak logs from surfaceHeight+1 to surfaceHeight+4 (4 blocks tall)
-        if (!isInLake && worldY >= surfaceHeight + 1 && worldY <= surfaceHeight + m_params.treeHeight) {
-            if (shouldGenerateTree(worldX, worldZ)) {
-                return BlockType::OAK_LOG;
+    if (worldY > surfaceHeight && worldY > waterLevel) {
+        // EXTREMELY STRICT tree placement: only on high, inland areas
+        bool isInOcean = isInOceanArea(worldX, worldZ);
+        if (!isInOcean && !isInLake && surfaceHeight >= waterLevel + 5) {
+            // Use continental noise to determine if we're well inland
+            double continentalNoise = m_continentNoise.octaveNoise(worldX * 0.0008, worldZ * 0.0008, 3, 0.5);
+            
+            // Only place trees on land that's very well inland - much stricter
+            // Triple check we're not in ocean and require very high continental noise
+            if (continentalNoise > 0.8 && !isInOceanArea(worldX, worldZ) && worldY >= surfaceHeight + 1 && worldY <= surfaceHeight + m_params.treeHeight) {
+                if (shouldGenerateTree(worldX, worldZ)) {
+                    return BlockType::OAK_LOG;
+                }
             }
         }
         
         return BlockType::AIR;
     }
     
-    // Surface layer - grass on top (but not under lakes)
+    // Surface layer - different blocks based on location
     if (worldY == surfaceHeight) {
-        if (isInLake) {
+        bool isInOcean = isInOceanArea(worldX, worldZ);
+        bool isInLake = shouldGenerateLake(worldX, worldZ);
+        
+        if (isInOcean) {
+            // Ocean floor - use sand for shallow areas, dirt for deep areas
+            if (surfaceHeight < waterLevel - 3) {
+                return BlockType::DIRT; // Deep ocean floor
+            } else {
+                return BlockType::SAND; // Shallow ocean floor
+            }
+        } else if (isInLake) {
             return BlockType::DIRT; // Lake bottom is dirt
         } else {
-            return BlockType::GRASS; // Normal surface is grass (don't replace with oak)
+            // Land surface - create beaches all around landmasses for island feeling
+            double continentalNoise = m_continentNoise.octaveNoise(worldX * 0.0008, worldZ * 0.0008, 3, 0.5);
+            
+            // Check for ocean in a larger radius to ensure beaches everywhere around islands
+            bool isNearOcean = false;
+            
+            // Larger search radius to catch all coastlines
+            for (int dx = -6; dx <= 6; dx++) {
+                for (int dz = -6; dz <= 6; dz++) {
+                    if (dx == 0 && dz == 0) continue;
+                    
+                    // Check if nearby area is ocean
+                    if (isInOceanArea(worldX + dx, worldZ + dz)) {
+                        isNearOcean = true;
+                        break;
+                    }
+                }
+                if (isNearOcean) break;
+            }
+            
+            // Create beaches around all coastlines - more generous conditions
+            if (isNearOcean && surfaceHeight <= waterLevel + 3 && continentalNoise > -0.2) {
+                // Add some variation so not every coastal block is sand
+                double beachVariation = m_lakeNoise.octaveNoise(worldX * 0.04, worldZ * 0.04, 2, 0.5);
+                if (beachVariation > -0.2) {  // Most coastal areas get sand
+                    return BlockType::SAND;
+                }
+            }
+            
+            // Default to grass for all other land areas
+            return BlockType::GRASS;
         }
     }
     
     // Dirt layer below surface
     if (worldY > surfaceHeight - m_params.dirtDepth && worldY < surfaceHeight) {
-        // Check if gravel should be placed near lakes
+        // Extend sand deeper in all coastal areas for island feel
+        double continentalNoise = m_continentNoise.octaveNoise(worldX * 0.0008, worldZ * 0.0008, 3, 0.5);
+        
+        // Same larger search radius as surface
+        bool isNearOcean = false;
+        for (int dx = -6; dx <= 6; dx++) {
+            for (int dz = -6; dz <= 6; dz++) {
+                if (dx == 0 && dz == 0) continue;
+                if (isInOceanArea(worldX + dx, worldZ + dz)) {
+                    isNearOcean = true;
+                    break;
+                }
+            }
+            if (isNearOcean) break;
+        }
+        
+        // Extend sand down in coastal areas - 2 blocks deep for better beaches
+        if (isNearOcean && surfaceHeight <= waterLevel + 3 && continentalNoise > -0.2 && worldY > surfaceHeight - 2) {
+            double beachVariation = m_lakeNoise.octaveNoise(worldX * 0.04, worldZ * 0.04, 2, 0.5);
+            if (beachVariation > -0.2) {
+                return BlockType::SAND;
+            }
+        }
+        
+        // Check for gravel near lakes, otherwise dirt
         if (shouldGenerateGravel(worldX, worldY, worldZ, surfaceHeight)) {
             return BlockType::GRAVEL;
         }
@@ -389,4 +473,117 @@ bool TerrainGenerator::shouldGenerateGravel(int worldX, int worldY, int worldZ, 
     
     // Far from water - sparse gravel
     return combinedNoise > threshold;
+}
+
+bool TerrainGenerator::isInOceanArea(int worldX, int worldZ) const {
+    // Use continental noise to determine if this is ocean
+    double continentalNoise = m_continentNoise.octaveNoise(
+        worldX * 0.0008,  // Same scale as height generation
+        worldZ * 0.0008,
+        3,
+        0.5
+    );
+    
+    // Ocean areas have low continental noise values
+    return continentalNoise < -0.1; // Consistent with height generation
+}
+
+float TerrainGenerator::getDistanceToOcean(int worldX, int worldZ) const {
+    // Sample in a grid pattern to find nearest ocean
+    float minDistance = 999.0f;
+    int searchRadius = 50; // Search up to 50 blocks
+    
+    for (int dx = -searchRadius; dx <= searchRadius; dx += 5) {
+        for (int dz = -searchRadius; dz <= searchRadius; dz += 5) {
+            if (isInOceanArea(worldX + dx, worldZ + dz)) {
+                float distance = std::sqrt(dx * dx + dz * dz);
+                minDistance = std::min(minDistance, distance);
+                
+                // Early exit if we found ocean very close
+                if (minDistance < 10.0f) {
+                    return minDistance;
+                }
+            }
+        }
+    }
+    
+    return minDistance;
+}
+
+bool TerrainGenerator::shouldGenerateSand(int worldX, int worldY, int worldZ, int surfaceHeight) const {
+    // Generate sand in coastal areas and deserts
+    
+    // Only generate sand near the surface and slightly underground
+    if (worldY > surfaceHeight + 1 || worldY < surfaceHeight - 2) {
+        return false;
+    }
+    
+    // Use continental noise to determine proximity to ocean
+    double continentalNoise = m_continentNoise.octaveNoise(worldX * 0.001, worldZ * 0.001, 4, 0.6);
+    
+    // Ocean floor gets sand in shallow areas
+    if (continentalNoise < -0.1 && continentalNoise > -0.3) {
+        return true; // Shallow ocean floor
+    }
+    
+    // Beach sand - close to ocean (low continental noise but not ocean itself)
+    if (continentalNoise > -0.1 && continentalNoise < 0.3) {
+        double beachNoise = m_lakeNoise.octaveNoise(
+            worldX * 0.08,
+            worldZ * 0.08,
+            2,
+            0.5
+        );
+        
+        // More sand closer to ocean
+        float proximityFactor = 1.0f - ((continentalNoise + 0.1f) / 0.4f);
+        return beachNoise > (0.2 - proximityFactor * 0.3);
+    }
+    
+    // Desert sand - in dry areas well inland
+    if (continentalNoise > 0.6) {
+        double desertNoise = m_plainsNoise.octaveNoise(
+            worldX * 0.05,
+            worldZ * 0.05,
+            3,
+            0.6
+        );
+        
+        // Additional noise for desert patches
+        double patchNoise = m_detailNoise.octaveNoise(
+            worldX * 0.15,
+            worldZ * 0.15,
+            2,
+            0.4
+        );
+        
+        double combinedDesertNoise = desertNoise * 0.7 + patchNoise * 0.3;
+        return combinedDesertNoise > 0.4; // Threshold for desert areas
+    }
+    
+    return false;
+}
+
+bool TerrainGenerator::isOnContinent(int worldX, int worldZ) const {
+    // Use very low frequency noise for large continental shapes
+    double continentNoise = m_continentNoise.octaveNoise(
+        worldX * 0.003,  // Very low frequency for continent-scale features
+        worldZ * 0.003,
+        4,               // Multiple octaves for complex coastlines
+        0.65             // High persistence for smoother transitions
+    );
+    
+    // Add island detail noise for more interesting coastlines
+    double islandDetail = m_islandNoise.octaveNoise(
+        worldX * 0.008,  // Medium frequency for island-scale features
+        worldZ * 0.008,
+        3,
+        0.5
+    );
+    
+    // Combine noises - continent noise dominates, island detail adds complexity
+    double combinedNoise = continentNoise * 0.8 + islandDetail * 0.2;
+    
+    // Threshold for land vs ocean - adjust this to control land/ocean ratio
+    return combinedNoise > -0.1;  // Slightly biased toward land
 }

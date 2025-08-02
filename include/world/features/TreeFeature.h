@@ -43,18 +43,12 @@ private:
     
     bool checkSpacing(const TerrainContext& context) const;
     int getTreeHeight(const TerrainContext& context) const;
-    void generateLeaves(Chunk& chunk, int centerX, int centerY, int centerZ, const TerrainContext& context) const;
     
-    // New Minecraft-like tree generation methods
-    void generateCompleteTree(Chunk& chunk, int localX, int baseY, int localZ, int height, const TerrainContext& context) const;
-    void generateMinecraftLeaves(Chunk& chunk, int centerX, int leafStartY, int centerZ, int treeHeight, const TerrainContext& context) const;
-    void generateAggressiveLeaves(Chunk& chunk, int centerX, int leafStartY, int centerZ, int treeHeight) const;
-    void generateRobustLeaves(Chunk& chunk, int centerX, int leafStartY, int centerZ, int treeHeight) const;
-    void generateCompleteCanopy(Chunk& chunk, int centerX, int leafStartY, int centerZ, int treeHeight) const;
-    void placeLeafBlock(Chunk& chunk, int x, int y, int z, const TerrainContext& context) const;
-    void placeLeafIfValid(Chunk& chunk, int x, int y, int z) const;
-    int countLeavesAroundTree(Chunk& chunk, int centerX, int leafStartY, int centerZ) const;
-    bool forceLeafBlock(Chunk& chunk, int x, int y, int z) const;  // Returns true if leaf was placed
+    // New improved tree generation methods
+    void generateImprovedTree(Chunk& chunk, int localX, int baseY, int localZ, int height, const TerrainContext& context) const;
+    void generateSimpleLeaves(Chunk& chunk, int centerX, int leafStartY, int centerZ, int treeHeight) const;
+    void placeLeaf(Chunk& chunk, int x, int y, int z) const;
+    int countNearbyLeaves(Chunk& chunk, int centerX, int leafStartY, int centerZ) const;
     
     // Helper methods for comprehensive tree generation
     bool shouldGenerateTreeAtPosition(const TerrainContext& context) const;

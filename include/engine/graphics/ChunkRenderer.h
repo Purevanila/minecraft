@@ -35,6 +35,7 @@ private:
     std::shared_ptr<Texture> m_oakTexture;
     std::shared_ptr<Texture> m_oakLeavesTexture;
     std::shared_ptr<Texture> m_gravelTexture;
+    std::shared_ptr<Texture> m_sandTexture;
     
     // Lighting setup
     glm::vec3 m_lightPos;

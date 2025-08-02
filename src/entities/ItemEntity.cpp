@@ -167,6 +167,8 @@ std::shared_ptr<Texture> ItemEntity::getTextureForBlockType(BlockType blockType)
             return assetManager.getTexture("assets/textures/grass.png");
         case BlockType::DIRT:
             return assetManager.loadTexture("assets/textures/grass.png"); // Use grass texture for dirt as fallback
+        case BlockType::SAND:
+            return assetManager.getTexture("assets/textures/sand.png");
         case BlockType::WOOD:
         case BlockType::OAK_LOG:
             return assetManager.getTexture("assets/textures/oak.png");

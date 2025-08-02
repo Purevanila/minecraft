@@ -457,6 +457,8 @@ std::shared_ptr<Texture> Hotbar::getTextureForBlockType(BlockType blockType) {
             return AssetManager::getInstance().loadTexture("assets/textures/grass.png"); // Use grass for now
         case BlockType::STONE:
             return AssetManager::getInstance().loadTexture("assets/textures/stone.png");
+        case BlockType::SAND:
+            return AssetManager::getInstance().loadTexture("assets/textures/sand.png");
         case BlockType::OAK_LOG:
             return AssetManager::getInstance().loadTexture("assets/textures/oak.png");
         case BlockType::LEAVES:

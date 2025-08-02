@@ -500,8 +500,11 @@ void Game::handleBlockBreaking() {
         if (blockType != BlockType::AIR) {
             m_world->setBlock(result.blockPos.x, result.blockPos.y, result.blockPos.z, BlockType::AIR);
             
+            // Get the correct drop type from block definition registry
+            BlockType dropType = BlockDefinitionRegistry::getInstance().getDropType(blockType);
+            
             glm::vec3 itemPosition = glm::vec3(result.blockPos) + 0.5f;
-            spawnItemEntity(itemPosition, blockType);
+            spawnItemEntity(itemPosition, dropType);  // Use drop type instead of block type
             
             std::cout << "Block broken at (" << result.blockPos.x << ", " << result.blockPos.y << ", " << result.blockPos.z << ")" << std::endl;
         }
